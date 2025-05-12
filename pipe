@@ -4594,7 +4594,7 @@ class Pipe:
             from open_webui.routers.retrieval import process_web_search, SearchForm
 
             # Create a search form with the query
-            search_form = SearchForm(query=query)
+            search_form = SearchForm(queries=[query])
 
             # Call the search function
             logger.debug(f"Executing built-in search with query: {query}")
@@ -4603,9 +4603,9 @@ class Pipe:
             search_task = asyncio.create_task(
                 process_web_search(self.__request__, search_form, user=self.__user__)
             )
-            search_results = await asyncio.wait_for(search_task, timeout=15.0)
+            search_results = await asyncio.wait_for(search_task, timeout=360.0)
 
-            logger.debug(f"Search results received: {type(search_results)}")
+            logger.debug(f"Search results type received: {type(search_results)}")
             results = []
 
             # Get state for URL tracking
@@ -4644,9 +4644,9 @@ class Pipe:
                                 "snippet": doc,
                             }
                         )
-                elif "collection_name" in search_results:
+                elif "collection_names" in search_results:
                     # For collection-based results
-                    collection_name = search_results.get("collection_name")
+                    collection_name = search_results.get("collection_names")
                     urls = search_results.get("filenames", [])
 
                     logger.debug(
