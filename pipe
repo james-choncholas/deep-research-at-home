@@ -5552,7 +5552,6 @@ Reply with JUST "Yes" or "No" - no explanation or other text.""",
                 "messages": messages,
                 "stream": stream,
                 "temperature": temperature,
-                "keep_alive": "10m",
             }
 
             response = await generate_chat_completions(
