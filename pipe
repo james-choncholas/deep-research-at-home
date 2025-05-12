@@ -635,7 +635,46 @@ class Pipe:
         if cached_embedding is not None:
             return cached_embedding
 
-        # If not in cache, get from API
+        # Try to use Open WebUI's embedding functionality if available.
+        try:
+            logger.debug(f"Trying OpenWebUI get_embedding")
+            from open_webui.routers.retrieval import get_embedding_function
+
+            conf = self.__request__.app.state.config
+
+            embedding_function = get_embedding_function(
+                self.__request__.app.state.config.RAG_EMBEDDING_ENGINE,
+                self.__request__.app.state.config.RAG_EMBEDDING_MODEL,
+                self.__request__.app.state.ef,
+                (
+                    self.__request__.app.state.config.RAG_OPENAI_API_BASE_URL
+                    if self.__request__.app.state.config.RAG_EMBEDDING_ENGINE
+                    == "openai"
+                    else self.__request__.app.state.config.RAG_OLLAMA_BASE_URL
+                ),
+                (
+                    self.__request__.app.state.config.RAG_OPENAI_API_KEY
+                    if self.__request__.app.state.config.RAG_EMBEDDING_ENGINE
+                    == "openai"
+                    else self.__request__.app.state.config.RAG_OLLAMA_API_KEY
+                ),
+                self.__request__.app.state.config.RAG_EMBEDDING_BATCH_SIZE,
+            )
+
+            embeddings = embedding_function(
+                [text.replace("\n", " ")],
+                # prefix=self.__request__.app.state.config.RAG_EMBEDDING_CONTENT_PREFIX, not found for some reason?
+                user=self.__user__,
+            )
+
+            if embeddings:
+                self.embedding_cache.set(text, embeddings[0])
+                return embeddings[0]
+
+        except Exception as e:
+            logger.error(f"Error getting embedding from OpenWebUI: {e}")
+
+        # If Open WebUI fails, fall back to Ollama API.
         try:
             connector = aiohttp.TCPConnector(force_close=True)
             async with aiohttp.ClientSession(connector=connector) as session:
@@ -670,7 +709,7 @@ class Pipe:
 
             return None
         except Exception as e:
-            logger.error(f"Error getting embedding: {e}")
+            logger.error(f"Error getting embedding from Ollama: {e}")
             return None
 
     async def get_transformed_embedding(
